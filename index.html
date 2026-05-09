@@ -99,11 +99,11 @@
 </head>
 <body>
   <div class="header">
-    <h1>JE Lunch Menu</h1>
+    <h1>🍽️ JE Lunch Menu</h1>
     <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
       <div class="allergen-note-wrap">
         <span class="allergen-note-link">Allergen disclaimer</span>
-        <div class="allergen-tooltip">Allergen info is not actively monitored by the person who built this page — view the full menu to confirm. <br><br>Note: This site was built with AI and may contain inaccuracies.</div>
+        <div class="allergen-tooltip">Allergen info is not actively monitored by the person who built this page — view the full menu to confirm.</div>
       </div>
       <a class="full-menu-btn" href="https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=69c57eef1362d4403e38d8c6&menuType=65735d70e96f1ebdb28b4568&siteCode=27928&showAllNutrients=false" target="_blank" rel="noopener">View full menu</a>
     </div>
@@ -144,9 +144,12 @@
     const isWeekend = dow === 0 || dow === 6;
 
     // Set tab label
-    if (isFriday || isWeekend) {
-      document.getElementById("week-tab").textContent = "Next week";
-    }
+    const weekLabel = (isFriday || isWeekend) ? "Next week" : "This week";
+    document.getElementById("week-tab").textContent = weekLabel;
+    const weekSubheading = document.createElement("div");
+    weekSubheading.className = "next-label";
+    weekSubheading.textContent = weekLabel;
+    document.getElementById("tab-week").appendChild(weekSubheading);
 
     function getWeekDays() {
       const days = [];
@@ -329,5 +332,6 @@
     });
     document.addEventListener('click', () => noteWrap.classList.remove('open'));
   </script>
+
 </body>
 </html>
