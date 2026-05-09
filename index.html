@@ -161,7 +161,8 @@
     document.getElementById("week-tab").textContent = weekLabel;
     const weekSubheading = document.createElement("div");
     weekSubheading.className = "next-label";
-    weekSubheading.textContent = weekLabel;
+    weekSubheading.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+    weekSubheading.innerHTML = `<span>${weekLabel}</span><div class="allergen-note-wrap"><span class="allergen-note-link">Allergen disclaimer</span><div class="allergen-tooltip">Allergen info is not confirmed or monitored by the person who built this page — view the full menu to confirm.</div></div>`;
     document.getElementById("tab-week").appendChild(weekSubheading);
 
     function getWeekDays() {
