@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JE Lunch Menu</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; margin: 0; padding: 0; background: #fff; }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1rem 0;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.4rem; margin: 0; }
+    .full-menu-btn {
+      font-size: 0.8rem;
+      padding: 6px 12px;
+      background: #4a9e4a;
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .full-menu-btn:hover { background: #3a8e3a; }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0;
+      max-width: 700px;
+      margin: 0.75rem auto 0;
+      padding: 0 1rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    .tab {
+      padding: 8px 20px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: #666;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      user-select: none;
+    }
+    .tab.active { color: #4a9e4a; border-bottom-color: #4a9e4a; font-weight: 600; }
+
+    /* Content */
+    .tab-content { display: none; max-width: 700px; margin: 0 auto; padding: 1rem; }
+    .tab-content.active { display: block; }
+
+    #status { color: #666; padding: 1rem; max-width: 700px; margin: 0 auto; }
+
+    .day-group { margin-bottom: 1rem; padding: 0.9rem 1rem; border-radius: 10px; background: #f5f5f5; }
+    .day-group.today { background: #e8f4e8; border: 2px solid #4a9e4a; }
+    .day-label { font-weight: 600; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .badge { font-size: 0.72rem; font-weight: normal; background: #4a9e4a; color: white; padding: 2px 8px; border-radius: 10px; }
+    .item { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 0.88rem; gap: 8px; }
+    .item-name { flex: 1; }
+    .category { color: #777; font-size: 0.78rem; margin-left: 6px; }
+    .allergens { color: #c00; font-size: 0.75rem; text-align: right; flex-shrink: 0; }
+    .no-menu { color: #888; font-style: italic; font-size: 0.88rem; }
+    .next-label { font-size: 0.82rem; color: #555; margin: 1rem 0 0.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    @media (max-width: 480px) {
+      h1 { font-size: 1.2rem; }
+      .tab { padding: 8px 14px; font-size: 0.88rem; }
+      .item { font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>JE Lunch Menu</h1>
+    <a class="full-menu-btn" href="https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=69c57eef1362d4403e38d8c6&menuType=65735d70e96f1ebdb28b4568&siteCode=27928&showAllNutrients=false" target="_blank" rel="noopener">View full menu</a>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="today">Today</div>
+    <div class="tab" id="week-tab" data-tab="week">This week</div>
+  </div>
+
+  <p id="status">Loading...</p>
+  <div id="tab-today" class="tab-content active"></div>
+  <div id="tab-week" class="tab-content"></div>
+
+  <script>
+    const GRAPHQL_URL = "https://api.schoolnutritionandfitness.com/graphql";
+    const MENU_ID = "69c57eef1362d4403e38d8c6";
+    const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const ALLERGEN_FIELDS = ["allergen_milk","allergen_wheat","allergen_soy","allergen_egg","allergen_fish","allergen_peanut","allergen_treenuts","allergen_sesame","allergen_gluten"];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Tab switching
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("tab-" + tab.dataset.tab).classList.add("active");
+      });
+    });
+
+    // Determine week days to show
+    const dow = today.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
+    const isFriday = dow === 5;
+    const isWeekend = dow === 0 || dow === 6;
+
+    // Set tab label
+    if (isFriday || isWeekend) {
+      document.getElementById("week-tab").textContent = "Next week";
+    }
+
+    function getWeekDays() {
+      const days = [];
+      if (isFriday) {
+        // Next Mon–Fri
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + 3);
+        for (let i = 0; i < 5; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          days.push(d);
+        }
+      } else if (isWeekend) {
+        // Next Mon–Fri
+        const daysUntilMon = dow === 6 ? 2 : 1;
+        const monday = new Date(today);
+        monday.setDate(today.getDate() + daysUntilMon);
+        for (let i = 0; i < 5; i++) {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          days.push(d);
+        }
+      } else {
+        // Today through Friday
+        const daysUntilFri = 5 - dow;
+        for (let i = 0; i <= daysUntilFri; i++) {
+          const d = new Date(today);
+          d.setDate(today.getDate() + i);
+          days.push(d);
+        }
+      }
+      return days;
+    }
+
+    const weekDays = getWeekDays();
+
+    // Cache fetched months: key = "YYYY-M"
+    const menuCache = {};
+
+    // Fetches the menu. The API returns the current month by default;
+    // for a future month we pass startDate/endDate covering that month.
+    function fetchMenu(year, month0) {
+      const key = `${year}-${month0}`;
+      if (menuCache[key]) return menuCache[key];
+
+      const isCurrentMonth = year === today.getFullYear() && month0 === today.getMonth();
+      let queryBody;
+      if (isCurrentMonth) {
+        queryBody = `{ menu(id:"${MENU_ID}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
+      } else {
+        // Build first/last day of the target month as YYYY-MM-DD
+        const firstDay = `${year}-${String(month0 + 1).padStart(2,"0")}-01`;
+        const lastDayNum = new Date(year, month0 + 1, 0).getDate();
+        const lastDay = `${year}-${String(month0 + 1).padStart(2,"0")}-${lastDayNum}`;
+        queryBody = `{ menu(id:"${MENU_ID}", startDate:"${firstDay}", endDate:"${lastDay}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
+      }
+
+      const promise = fetch(GRAPHQL_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Origin": "https://www.schoolnutritionandfitness.com" },
+        body: JSON.stringify({ query: queryBody })
+      }).then(r => r.json()).then(data => {
+        const items = data.data.menu.items;
+        const byDay = {};
+        for (const item of items) {
+          if (!item.product) continue;
+          if (!byDay[item.day]) byDay[item.day] = [];
+          byDay[item.day].push(item.product);
+        }
+        return byDay;
+      });
+      menuCache[key] = promise;
+      return promise;
+    }
+
+    function renderDay(date, products, isToday) {
+      const weekday = date.toLocaleDateString("en-US", { weekday: "long" });
+      const label = `${weekday}, ${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
+
+      const section = document.createElement("div");
+      section.className = "day-group" + (isToday ? " today" : "");
+
+      const title = document.createElement("div");
+      title.className = "day-label";
+      title.innerHTML = label + (isToday ? ' <span class="badge">Today</span>' : "");
+      section.appendChild(title);
+
+      if (!products || products.length === 0) {
+        const none = document.createElement("div");
+        none.className = "no-menu";
+        none.textContent = "No menu available.";
+        section.appendChild(none);
+      } else {
+        for (const p of products) {
+          const allergens = ALLERGEN_FIELDS.filter(f => p[f] === "1").map(f => f.replace("allergen_", ""));
+          const veg = p.allergen_vegetarian === "1" ? " 🌿" : "";
+          const row = document.createElement("div");
+          row.className = "item";
+          row.innerHTML = `<span class="item-name">${p.name}${veg}<span class="category">${p.category || ""}</span></span>${allergens.length ? `<span class="allergens">${allergens.join(", ")}</span>` : ""}`;
+          section.appendChild(row);
+        }
+      }
+      return section;
+    }
+
+    async function load() {
+      try {
+        // Collect all unique year/month combos we need
+        const monthsNeeded = new Map();
+        const addMonth = d => {
+          const k = `${d.getFullYear()}-${d.getMonth()}`;
+          if (!monthsNeeded.has(k)) monthsNeeded.set(k, { year: d.getFullYear(), month: d.getMonth() });
+        };
+        addMonth(today);
+        weekDays.forEach(addMonth);
+        // next school day (for Today tab)
+        const nextDayPrefetch = new Date(today);
+        do { nextDayPrefetch.setDate(nextDayPrefetch.getDate() + 1); } while (nextDayPrefetch.getDay() === 0 || nextDayPrefetch.getDay() === 6);
+        addMonth(nextDayPrefetch);
+
+        // Fetch all needed months (deduped)
+        await Promise.all([...monthsNeeded.values()].map(({ year, month }) => fetchMenu(year, month)));
+
+        document.getElementById("status").textContent = "";
+
+        // Today tab
+        const todayData = await fetchMenu(today.getFullYear(), today.getMonth());
+        const todayTab = document.getElementById("tab-today");
+        todayTab.appendChild(renderDay(today, todayData[today.getDate()], true));
+
+        // Next school day
+        const nextDay = new Date(today);
+        do { nextDay.setDate(nextDay.getDate() + 1); } while (nextDay.getDay() === 0 || nextDay.getDay() === 6);
+        const nextDayData = await fetchMenu(nextDay.getFullYear(), nextDay.getMonth());
+        const divider = document.createElement("div");
+        divider.className = "next-label";
+        divider.textContent = "Next School Day";
+        todayTab.appendChild(divider);
+        todayTab.appendChild(renderDay(nextDay, nextDayData[nextDay.getDate()], false));
+
+        // Week tab
+        const weekContainer = document.getElementById("tab-week");
+        for (const d of weekDays) {
+          const data = await fetchMenu(d.getFullYear(), d.getMonth());
+          const isToday = d.getTime() === today.getTime();
+          weekContainer.appendChild(renderDay(d, data[d.getDate()], isToday));
+        }
+      } catch (err) {
+        document.getElementById("status").textContent = "Failed to load menu: " + err.message;
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
