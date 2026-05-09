@@ -60,11 +60,12 @@
 
     .day-group { margin-bottom: 1rem; padding: 0.9rem 1rem; border-radius: 10px; background: #f5f5f5; }
     .day-group.today { background: #e8f4e8; border: 2px solid #4a9e4a; }
-    .day-label { font-weight: 600; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+    .day-label { font-weight: 600; font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
     .badge { font-size: 0.72rem; font-weight: normal; background: #4a9e4a; color: white; padding: 2px 8px; border-radius: 10px; }
     .item { display: flex; justify-content: space-between; align-items: baseline; padding: 3px 0; font-size: 0.88rem; gap: 8px; }
     .item-name { flex: 1; }
-    .category { color: #777; font-size: 0.78rem; margin-left: 6px; }
+    .category-heading { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #777; margin: 12px 0 3px; }
+    .category-heading:first-of-type { margin-top: 0; }
     .allergens { color: #c00; font-size: 0.75rem; text-align: right; flex-shrink: 0; }
     .no-menu { color: #888; font-style: italic; font-size: 0.88rem; }
     .next-label { font-size: 0.82rem; color: #555; margin: 1.75rem 0 0.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
@@ -215,13 +216,28 @@
         none.textContent = "No school today.";
         section.appendChild(none);
       } else {
+        const groups = [];
+        const seen = new Map();
         for (const p of filtered) {
-          const allergens = ALLERGEN_FIELDS.filter(f => p[f] === "1").map(f => f.replace("allergen_", ""));
-          const veg = p.allergen_vegetarian === "1" ? " 🌿" : "";
-          const row = document.createElement("div");
-          row.className = "item";
-          row.innerHTML = `<span class="item-name">${p.name}${veg}<span class="category">${p.category || ""}</span></span>${allergens.length ? `<span class="allergens">${allergens.join(", ")}</span>` : ""}`;
-          section.appendChild(row);
+          const cat = p.category || "";
+          if (!seen.has(cat)) { seen.set(cat, []); groups.push(cat); }
+          seen.get(cat).push(p);
+        }
+        let first = true;
+        for (const cat of groups) {
+          const heading = document.createElement("div");
+          heading.className = "category-heading";
+          if (first) { heading.style.marginTop = "6px"; first = false; }
+          heading.textContent = cat;
+          section.appendChild(heading);
+          for (const p of seen.get(cat)) {
+            const allergens = ALLERGEN_FIELDS.filter(f => p[f] === "1").map(f => f.replace("allergen_", ""));
+            const veg = p.allergen_vegetarian === "1" ? " 🌿" : "";
+            const row = document.createElement("div");
+            row.className = "item";
+            row.innerHTML = `<span class="item-name">${p.name}${veg}</span>${allergens.length ? `<span class="allergens">${allergens.join(", ")}</span>` : ""}`;
+            section.appendChild(row);
+          }
         }
       }
       return section;
