@@ -67,7 +67,8 @@
     .category { color: #777; font-size: 0.78rem; margin-left: 6px; }
     .allergens { color: #c00; font-size: 0.75rem; text-align: right; flex-shrink: 0; }
     .no-menu { color: #888; font-style: italic; font-size: 0.88rem; }
-    .next-label { font-size: 0.82rem; color: #555; margin: 1rem 0 0.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    .next-label { font-size: 0.82rem; color: #555; margin: 1.75rem 0 0.4rem; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; }
+    .tab-content .next-label:first-child { margin-top: 0; }
 
     @media (max-width: 480px) {
       h1 { font-size: 1.2rem; }
@@ -211,7 +212,7 @@
       if (filtered.length === 0) {
         const none = document.createElement("div");
         none.className = "no-menu";
-        none.textContent = "No menu available.";
+        none.textContent = "No school today.";
         section.appendChild(none);
       } else {
         for (const p of filtered) {
@@ -249,7 +250,11 @@
         // Today tab
         const todayData = await fetchMenu(today.getFullYear(), today.getMonth());
         const todayTab = document.getElementById("tab-today");
-        todayTab.appendChild(renderDay(today, todayData[today.getDate()], true));
+        const todayLabel = document.createElement("div");
+        todayLabel.className = "next-label";
+        todayLabel.textContent = "Today";
+        todayTab.appendChild(todayLabel);
+        todayTab.appendChild(renderDay(today, todayData[today.getDate()], false));
 
         // Next school day
         const nextDay = new Date(today);
