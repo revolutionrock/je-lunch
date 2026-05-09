@@ -33,7 +33,7 @@
     }
     .full-menu-btn:hover { background: #3a8e3a; }
     .allergen-note-wrap { position: relative; display: inline-flex; align-items: center; }
-    .allergen-note-link { font-size: 0.75rem; color: #888; text-decoration: underline dotted; cursor: default; white-space: nowrap; }
+    .allergen-note-link { font-size: 0.72rem; color: #aaa; text-decoration: underline dotted; cursor: default; white-space: nowrap; font-weight: normal; text-transform: none; letter-spacing: normal; }
     .allergen-tooltip {
       display: none;
       position: absolute;
@@ -43,9 +43,13 @@
       background: #333;
       color: #fff;
       font-size: 0.72rem;
+      font-weight: normal;
+      text-transform: none;
+      letter-spacing: normal;
       line-height: 1.4;
       padding: 8px 10px;
       border-radius: 6px;
+      text-align: left;
       z-index: 100;
     }
     .allergen-note-wrap:hover .allergen-tooltip,
@@ -108,19 +112,14 @@
       h1 { font-size: 1.2rem; }
       .tab { padding: 8px 14px; font-size: 0.88rem; }
       .item { font-size: 0.85rem; }
+      .pto-banner .pto-link { display: block; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>🍽️ JE Lunch Menu</h1>
-    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-      <div class="allergen-note-wrap">
-        <span class="allergen-note-link">Allergen disclaimer</span>
-        <div class="allergen-tooltip">Allergen info is not actively monitored by the person who built this page — view the full menu to confirm.</div>
-      </div>
-      <a class="full-menu-btn" href="https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=69c57eef1362d4403e38d8c6&menuType=65735d70e96f1ebdb28b4568&siteCode=27928&showAllNutrients=false" target="_blank" rel="noopener">View full menu</a>
-    </div>
+    <a class="full-menu-btn" href="https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=69c57eef1362d4403e38d8c6&menuType=65735d70e96f1ebdb28b4568&siteCode=27928&showAllNutrients=false" target="_blank" rel="noopener">View full menu</a>
   </div>
 
   <div class="tabs">
@@ -310,7 +309,8 @@
         const todayTab = document.getElementById("tab-today");
         const todayLabel = document.createElement("div");
         todayLabel.className = "next-label";
-        todayLabel.textContent = "Today";
+        todayLabel.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+        todayLabel.innerHTML = `<span>Today</span><div class="allergen-note-wrap"><span class="allergen-note-link">Allergen disclaimer</span><div class="allergen-tooltip">Allergen info is not confirmed or monitored by the person who built this page — view the full menu to confirm.</div></div>`;
         todayTab.appendChild(todayLabel);
         todayTab.appendChild(renderDay(today, todayData[today.getDate()], false));
 
@@ -339,13 +339,12 @@
     load();
   </script>
   <script>
-    const noteWrap = document.querySelector('.allergen-note-wrap');
-    noteWrap.addEventListener('click', e => {
-      noteWrap.classList.toggle('open');
-      e.stopPropagation();
+    document.addEventListener('click', e => {
+      const wrap = e.target.closest('.allergen-note-wrap');
+      document.querySelectorAll('.allergen-note-wrap.open').forEach(el => { if (el !== wrap) el.classList.remove('open'); });
+      if (wrap) { wrap.classList.toggle('open'); e.stopPropagation(); }
     });
-    document.addEventListener('click', () => noteWrap.classList.remove('open'));
   </script>
-  <div class="pto-banner">🐾 Was this page helpful? <a href="https://account.venmo.com/u/JoshuaEatonPTO" target="_blank" rel="noopener">Say thanks by donating to the PTO!</a></div>
+  <div class="pto-banner">🐾 Was this page helpful? <a class="pto-link" href="https://account.venmo.com/u/JoshuaEatonPTO" target="_blank" rel="noopener">Say thanks by donating to the PTO!</a></div>
 </body>
 </html>
