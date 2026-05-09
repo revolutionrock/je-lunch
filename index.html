@@ -96,6 +96,7 @@
     const MENU_ID = "69c57eef1362d4403e38d8c6";
     const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const ALLERGEN_FIELDS = ["allergen_milk","allergen_wheat","allergen_soy","allergen_egg","allergen_fish","allergen_peanut","allergen_treenuts","allergen_sesame","allergen_gluten"];
+    const SUPPRESSED_ITEMS = new Set(["1% white milk","fat free chocolate milk","fresh assorted fruit","fresh veggie cup"]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -206,13 +207,14 @@
       title.innerHTML = label + (isToday ? ' <span class="badge">Today</span>' : "");
       section.appendChild(title);
 
-      if (!products || products.length === 0) {
+      const filtered = (products || []).filter(p => !SUPPRESSED_ITEMS.has(p.name.toLowerCase()));
+      if (filtered.length === 0) {
         const none = document.createElement("div");
         none.className = "no-menu";
         none.textContent = "No menu available.";
         section.appendChild(none);
       } else {
-        for (const p of products) {
+        for (const p of filtered) {
           const allergens = ALLERGEN_FIELDS.filter(f => p[f] === "1").map(f => f.replace("allergen_", ""));
           const veg = p.allergen_vegetarian === "1" ? " 🌿" : "";
           const row = document.createElement("div");
