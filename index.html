@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JE Lunch Menu</title>
+  <title>Lunch Menu</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>">
   <style>
     * { box-sizing: border-box; }
@@ -12,13 +12,24 @@
     /* Header */
     .header {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      justify-content: space-between;
       padding: 1rem 1rem 0;
       max-width: 700px;
       margin: 0 auto;
+      gap: 0.5rem;
     }
-    h1 { font-size: 1.4rem; margin: 0; }
+    h1 { font-size: 1.4rem; margin: 0; flex: 1 1 100%; }
+    .school-select {
+      font-size: 0.9rem;
+      padding: 5px 8px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      background: #fff;
+      color: #333;
+      cursor: pointer;
+      flex: 1;
+    }
     .full-menu-btn {
       font-size: 0.8rem;
       padding: 6px 12px;
@@ -118,8 +129,13 @@
 </head>
 <body>
   <div class="header">
-    <h1>🍽️ JE Lunch Menu</h1>
-    <a class="full-menu-btn" href="https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=69c57eef1362d4403e38d8c6&menuType=65735d70e96f1ebdb28b4568&siteCode=27928&showAllNutrients=false" target="_blank" rel="noopener">View full menu</a>
+    <h1>🍽️ Lunch Menu</h1>
+    <select class="school-select" id="school-select">
+      <option value="je">Joshua Eaton</option>
+      <option value="parker">Parker Middle</option>
+      <option value="rmhs">Reading Memorial HS</option>
+    </select>
+    <a class="full-menu-btn" id="full-menu-btn" href="" target="_blank" rel="noopener">View full menu</a>
   </div>
 
   <div class="tabs">
@@ -133,10 +149,20 @@
 
   <script>
     const GRAPHQL_URL = "https://api.schoolnutritionandfitness.com/graphql";
-    const MENU_ID = "69c57eef1362d4403e38d8c6";
+
+    // School configs — update the menuId each school year (see README for instructions)
+    const SCHOOLS = {
+      je:     { name: "Joshua Eaton",        menuId: "6a8f8d207e9d1d3b6a43488d", siteCode: "27928" },  // Joshua Eaton Elementary
+      parker: { name: "Parker Middle",        menuId: "6a9379b8852ce90d60683ef9", siteCode: "27929" },  // Parker Middle School
+      rmhs:   { name: "Reading Memorial HS",  menuId: "6a946ef9af85397eb010545d", siteCode: "27930" },  // Reading Memorial High School
+    };
+
+    let currentSchool = SCHOOLS.je;
+
     const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const ALLERGEN_FIELDS = ["allergen_milk","allergen_wheat","allergen_soy","allergen_egg","allergen_fish","allergen_peanut","allergen_treenuts","allergen_sesame","allergen_gluten"];
     const SUPPRESSED_ITEMS = new Set(["1% white milk","fat free chocolate milk","fresh assorted fruit","fresh veggie cup"]);
+    const SUPPRESSED_CATEGORIES = new Set(["condiment"]);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -212,13 +238,13 @@
       const isCurrentMonth = year === today.getFullYear() && month0 === today.getMonth();
       let queryBody;
       if (isCurrentMonth) {
-        queryBody = `{ menu(id:"${MENU_ID}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
+        queryBody = `{ menu(id:"${currentSchool.menuId}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
       } else {
         // Build first/last day of the target month as YYYY-MM-DD
         const firstDay = `${year}-${String(month0 + 1).padStart(2,"0")}-01`;
         const lastDayNum = new Date(year, month0 + 1, 0).getDate();
         const lastDay = `${year}-${String(month0 + 1).padStart(2,"0")}-${lastDayNum}`;
-        queryBody = `{ menu(id:"${MENU_ID}", startDate:"${firstDay}", endDate:"${lastDay}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
+        queryBody = `{ menu(id:"${currentSchool.menuId}", startDate:"${firstDay}", endDate:"${lastDay}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
       }
 
       const promise = fetch(GRAPHQL_URL, {
@@ -251,7 +277,7 @@
       title.innerHTML = label + (isToday ? ' <span class="badge">Today</span>' : "");
       section.appendChild(title);
 
-      const filtered = (products || []).filter(p => !SUPPRESSED_ITEMS.has(p.name.toLowerCase()));
+      const filtered = (products || []).filter(p => !SUPPRESSED_ITEMS.has(p.name.toLowerCase()) && !SUPPRESSED_CATEGORIES.has((p.category || "").toLowerCase()));
       if (filtered.length === 0) {
         const none = document.createElement("div");
         none.className = "no-menu";
@@ -337,6 +363,29 @@
       }
     }
 
+    function updateFullMenuLink() {
+      const btn = document.getElementById("full-menu-btn");
+      btn.href = `https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=${currentSchool.menuId}&siteCode=${currentSchool.siteCode}`;
+    }
+
+    function resetAndLoad() {
+      Object.keys(menuCache).forEach(k => delete menuCache[k]);
+      document.getElementById("tab-today").innerHTML = "";
+      document.getElementById("tab-week").innerHTML = "";
+      const weekContainer = document.getElementById("tab-week");
+      weekSubheading.innerHTML = `<span>${weekLabel}</span><div class="allergen-note-wrap"><span class="allergen-note-link">Allergen disclaimer</span><div class="allergen-tooltip">Allergen info is not confirmed or monitored by the person who built this page — view the full menu to confirm.</div></div>`;
+      weekContainer.appendChild(weekSubheading);
+      document.getElementById("status").textContent = "Loading...";
+      updateFullMenuLink();
+      load();
+    }
+
+    document.getElementById("school-select").addEventListener("change", e => {
+      currentSchool = SCHOOLS[e.target.value];
+      resetAndLoad();
+    });
+
+    updateFullMenuLink();
     load();
   </script>
   <script>
