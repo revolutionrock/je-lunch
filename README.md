@@ -16,11 +16,15 @@ Open `index.html` in a browser. No build step or server required.
 
 Allergen information is sourced automatically and is not confirmed or monitored by a person. This site was built with AI assistance and may contain inaccuracies.
 
-## Yearly update instructions
+## How menu lookup works
 
-If the menu isn't loading correctly (typically at the start of a new school year), you'll need to replace the menu IDs in the index.html file.
+Each school's menu system creates a brand-new, opaque menu ID every month. Rather than hardcoding a monthly ID (which would need manual updates every month), `index.html` stores a stable `menuTypeId` per school and automatically looks up the correct month's menu ID at runtime via the school nutrition site's `menutypeController.php/show` endpoint. No manual updates should be needed month to month.
 
-1. Get the new menu ID from the school nutrition site URL — it's the value after "id=".
-2. Open index.html and replace the old ID on lines 136 and 122 with the new one
+### If a school switches to a new menu system (rare)
 
-This tells the page which menu to fetch from the school's system — it needs to be updated each school year when the school creates a new menu record.
+If menus stop loading entirely and the school has set up a brand-new menu type (not just a new month), you'll need to find the new `menuTypeId`:
+
+1. Open the full menu link for that school on the school nutrition site.
+2. Note the menu `id` from the URL (after "id=").
+3. Fetch `https://www.schoolnutritionandfitness.com/webmenus2/api/menuController.php/open?id=<that id>` and read the `menu_type` field — that's the new `menuTypeId`.
+4. Update the corresponding entry in the `SCHOOLS` object in `index.html`.

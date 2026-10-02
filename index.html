@@ -150,12 +150,40 @@
   <script>
     const GRAPHQL_URL = "https://api.schoolnutritionandfitness.com/graphql";
 
-    // School configs — update the menuId each school year (see README for instructions)
+    // School configs — menuTypeId is stable across months/years, so the correct
+    // month's menu is looked up automatically (see resolveMenuId below).
     const SCHOOLS = {
-      je:     { name: "Joshua Eaton",        menuId: "6a8f8d207e9d1d3b6a43488d", siteCode: "27928" },  // Joshua Eaton Elementary
-      parker: { name: "Parker Middle",        menuId: "6a9379b8852ce90d60683ef9", siteCode: "27929" },  // Parker Middle School
-      rmhs:   { name: "Reading Memorial HS",  menuId: "6a946ef9af85397eb010545d", siteCode: "27930" },  // Reading Memorial High School
+      je:     { name: "Joshua Eaton",        menuTypeId: "65735d70e96f1ebdb28b4568", siteCode: "27928" },  // Joshua Eaton Elementary
+      parker: { name: "Parker Middle",        menuTypeId: "65735d83e96f1eb6b28b46bd", siteCode: "27929" },  // Parker Middle School
+      rmhs:   { name: "Reading Memorial HS",  menuTypeId: "65735d96e96f1e87b28b4569", siteCode: "27930" },  // Reading Memorial High School
     };
+
+    const MENU_CONTROLLER_URL = "https://www.schoolnutritionandfitness.com/webmenus2/api/menutypeController.php/show";
+
+    // Cache of menuTypeId -> Promise<Map("year-month0" -> menuId)>
+    const menuIndexCache = {};
+
+    function getMenuIndex(school) {
+      if (!menuIndexCache[school.menuTypeId]) {
+        menuIndexCache[school.menuTypeId] = fetch(`${MENU_CONTROLLER_URL}?_id=${school.menuTypeId}`)
+          .then(r => r.json())
+          .then(data => {
+            const index = new Map();
+            for (const m of data.menus || []) {
+              index.set(`${m.year}-${m.month}`, m._id.$id);
+            }
+            return index;
+          });
+      }
+      return menuIndexCache[school.menuTypeId];
+    }
+
+    async function resolveMenuId(school, year, month0) {
+      const index = await getMenuIndex(school);
+      const id = index.get(`${year}-${month0}`);
+      if (!id) throw new Error(`No published menu found for ${MONTH_NAMES[month0]} ${year}`);
+      return id;
+    }
 
     let currentSchool = SCHOOLS.je;
 
@@ -229,37 +257,28 @@
     // Cache fetched months: key = "YYYY-M"
     const menuCache = {};
 
-    // Fetches the menu. The API returns the current month by default;
-    // for a future month we pass startDate/endDate covering that month.
-    function fetchMenu(year, month0) {
+    // Fetches the menu for a given year/month. Each month has its own opaque
+    // menu ID on the school's system, resolved via resolveMenuId().
+    async function fetchMenu(year, month0) {
       const key = `${year}-${month0}`;
       if (menuCache[key]) return menuCache[key];
 
-      const isCurrentMonth = year === today.getFullYear() && month0 === today.getMonth();
-      let queryBody;
-      if (isCurrentMonth) {
-        queryBody = `{ menu(id:"${currentSchool.menuId}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
-      } else {
-        // Build first/last day of the target month as YYYY-MM-DD
-        const firstDay = `${year}-${String(month0 + 1).padStart(2,"0")}-01`;
-        const lastDayNum = new Date(year, month0 + 1, 0).getDate();
-        const lastDay = `${year}-${String(month0 + 1).padStart(2,"0")}-${lastDayNum}`;
-        queryBody = `{ menu(id:"${currentSchool.menuId}", startDate:"${firstDay}", endDate:"${lastDay}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
-      }
-
-      const promise = fetch(GRAPHQL_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Origin": "https://www.schoolnutritionandfitness.com" },
-        body: JSON.stringify({ query: queryBody })
-      }).then(r => r.json()).then(data => {
-        const items = data.data.menu.items;
-        const byDay = {};
-        for (const item of items) {
-          if (!item.product) continue;
-          if (!byDay[item.day]) byDay[item.day] = [];
-          byDay[item.day].push(item.product);
-        }
-        return byDay;
+      const promise = resolveMenuId(currentSchool, year, month0).then(menuId => {
+        const queryBody = `{ menu(id:"${menuId}") { items { day product { name category allergen_milk allergen_wheat allergen_soy allergen_egg allergen_fish allergen_peanut allergen_treenuts allergen_sesame allergen_gluten allergen_vegetarian } } } }`;
+        return fetch(GRAPHQL_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Origin": "https://www.schoolnutritionandfitness.com" },
+          body: JSON.stringify({ query: queryBody })
+        }).then(r => r.json()).then(data => {
+          const items = data.data.menu.items;
+          const byDay = {};
+          for (const item of items) {
+            if (!item.product) continue;
+            if (!byDay[item.day]) byDay[item.day] = [];
+            byDay[item.day].push(item.product);
+          }
+          return byDay;
+        });
       });
       menuCache[key] = promise;
       return promise;
@@ -363,9 +382,14 @@
       }
     }
 
-    function updateFullMenuLink() {
+    async function updateFullMenuLink() {
       const btn = document.getElementById("full-menu-btn");
-      btn.href = `https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=${currentSchool.menuId}&siteCode=${currentSchool.siteCode}`;
+      try {
+        const menuId = await resolveMenuId(currentSchool, today.getFullYear(), today.getMonth());
+        btn.href = `https://www.schoolnutritionandfitness.com/webmenus2/#/view?id=${menuId}&siteCode=${currentSchool.siteCode}`;
+      } catch (err) {
+        btn.href = `https://www.schoolnutritionandfitness.com/webmenus2/#/`;
+      }
     }
 
     function resetAndLoad() {
